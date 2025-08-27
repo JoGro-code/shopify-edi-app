@@ -113,3 +113,5 @@ Beide Pläne werden beim Abschluss als **kombinierte Subscription** (Recurring +
 - erfolgreichem **DESADV-Versand**
 
 Die `usageLineItemId` und die `usagePrice` werden pro Tenant gespeichert.
+
+© ConscioAI Inh Jonathan Grochla – All rights reserved
