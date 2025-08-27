@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id             String   @id @default(cuid())
+  shop           String   @unique
+  subscriptionId String?
+  usageLineItemId String?
+  plan           String?
+  usagePrice     Float?
+
+  partners       Partner[]
+  mappings       Mapping[]
+  documents      Document[]
+  secrets        Secret[]
+  sessions       Session[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Partner {
+  id        String  @id @default(cuid())
+  tenantId  String
+  name      String
+  qualifier String?
+  inbound   Json
+  outbound  Json
+  active    Boolean @default(true)
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  mappings  Mapping[]
+  documents Document[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Mapping {
+  id        String  @id @default(cuid())
+  tenantId  String
+  partnerId String?
+  docType   String
+  direction String
+  template  Json
+  overrides Json
+  active    Boolean @default(true)
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  partner   Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, partnerId, docType, direction])
+}
+
+model Document {
+  id         String   @id @default(cuid())
+  tenantId   String
+  partnerId  String?
+  direction  String
+  docType    String
+  status     String
+  correlation String?
+  hash       String?  @unique
+  payload    Json
+  errors     Json?
+  outPayload Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  partner   Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  jobs      Job[]
+  audits    AuditLog[]
+
+  @@index([tenantId, partnerId, direction, docType, status, createdAt])
+}
+
+model Job {
+  id         String   @id @default(cuid())
+  documentId String
+  type       String
+  status     String
+  attempts   Int      @default(0)
+  dlq        Boolean  @default(false)
+  result     Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([type, status, dlq])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  documentId String
+  level      String
+  message    String
+  data       Json?
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+model Secret {
+  id        String   @id @default(cuid())
+  tenantId  String
+  key       String
+  valueEnc  String
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+}
+
+/// Prisma session storage for @shopify/shopify-app-session-storage-prisma
+model Session {
+  id                 String   @id
+  shop               String?
+  state              String?
+  isOnline           Boolean?
+  scope              String?
+  expires            DateTime?
+  accessToken        String?
+  userId             BigInt?
+  firstParty         Boolean?
+  content            String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  tenantId           String?
+
+  @@index([shop])
+}
